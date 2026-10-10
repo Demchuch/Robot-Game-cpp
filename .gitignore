@@ -3,4 +3,5 @@ cmake-build-debug/
 *.o
 *.d
 *.exe
+*.txt
 all_code.txtdocs/report.docx
