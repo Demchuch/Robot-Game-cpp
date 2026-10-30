@@ -69,7 +69,7 @@ Requires a C++20 compiler.
 ```
 cmake -S . -B build
 cmake --build build
-./build/OOP
+./build/OOP        # on Windows with Visual Studio generators: build\Debug\OOP.exe
 ```
 
 **Make** (on Windows use `mingw32-make`):
@@ -106,5 +106,5 @@ movement/             movement and attack rules
 gameloop/, enemycontroller/                   turn order, input, AI
 visualizer/           console rendering
 tests/                checks for invalid data and moves
-docs/                 UML diagrams
+docs/                 UML diagrams, screenshots, report
 ```
