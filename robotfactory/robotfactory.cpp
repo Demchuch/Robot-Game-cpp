@@ -38,8 +38,10 @@ void RobotFactory::EndTurn() {
 Robot RobotFactory::CreateEnemy(int row, int col) {
 	if (IsReadyToSpawn()) {
 		turns_since_spawn_ = 0;
-		return Robot(kSpawnedMaxHealth, kSpawnedAttackPower, kSpawnedMaxEnergy, kSpawnedExperienceToNextRank,
+		Robot enemy(kSpawnedMaxHealth, kSpawnedAttackPower, kSpawnedMaxEnergy, kSpawnedExperienceToNextRank,
 					Team::kEnemy, row, col, kSpawnedSpeed, kVisionRadius);
+		enemy.AddAbility(ability_factory_.CreateRandomForEnemy());
+		return enemy;
 	}
 	throw std::logic_error("cant create robot");
 }

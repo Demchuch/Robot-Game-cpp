@@ -4,6 +4,9 @@
 
 #include "gameloop.h"
 
+#include <cstddef>
+#include <limits>
+
 #include "../config/game_constants.h"
 
 GameLoop::GameLoop(GameField &game_field, std::vector<Robot> &robots, std::vector<RobotFactory> &factories)
@@ -11,7 +14,7 @@ GameLoop::GameLoop(GameField &game_field, std::vector<Robot> &robots, std::vecto
 	factories_(factories),
 	robots_(robots),
 	movement_system_(game_field_),
-	enemy_controller_(robots_, movement_system_){
+	enemy_controller_(robots_, movement_system_, game_field_) {
 	for (const RobotFactory &factory: factories_) {
 		factory.PlaceOn(game_field_);
 	}
@@ -53,11 +56,12 @@ void GameLoop::ResetSpeed() {
 
 
 void GameLoop::Run() {
+	ChooseStartingAbility();
 	while (!AllEnemiesDefeated() && !IsPlayerDefeated()) {
 		PlayTurn();
 	}
 	Visualizer visualizer;
-	visualizer.Draw(game_field_, robots_, factories_);
+	visualizer.Draw(game_field_, robots_, factories_, display_mode_);
 	if (IsPlayerDefeated()) {
 		std::cout << "defeat" << std::endl;
 	} else {
@@ -66,12 +70,20 @@ void GameLoop::Run() {
 }
 
 
-bool GameLoop::HandlePlayerInput() const {
+bool GameLoop::HandlePlayerInput() {
 	Robot &player = FindPlayerRobot();
 	std::string input;
 	std::cin >> input;
 	if (input == kKeyEndTurn) {
 		return true;
+	}
+	if (input == kKeyChangeDisplayMode) {
+		display_mode_ = static_cast<DisplayMode>((static_cast<int>(display_mode_) + 1) % kDisplayModeCount);
+		return false;
+	}
+	if (IsMenuKey(input, player.GetAbilities().size())) {
+		UsePlayerAbility(player, static_cast<std::size_t>(input[0] - kFirstAbilityKey));
+		return false;
 	}
 	int row_offset = 0;
 	int col_offset = 0;
@@ -106,13 +118,15 @@ void GameLoop::PlayTurn() {
 	RegenerateEnergy();
 	RevealAroundPlayer();
 	Visualizer visualizer;
-	visualizer.Draw(game_field_, robots_, factories_);
+	visualizer.Draw(game_field_, robots_, factories_, display_mode_);
 	while (!HandlePlayerInput()) {
+		HandleRankUps();
 		RevealAroundPlayer();
-		visualizer.Draw(game_field_, robots_, factories_);
+		visualizer.Draw(game_field_, robots_, factories_, display_mode_);
 	}
 	enemy_controller_.AiTurn();
 	SpawnEnemies();
+	EndTurnAll();
 }
 
 void GameLoop::RevealAroundPlayer() {
@@ -156,4 +170,72 @@ void GameLoop::SpawnEnemies() {
 	}
 }
 
+void GameLoop::ChooseStartingAbility() {
+	std::cout << "Choose your starting ability:" << std::endl;
+	for (int i = 0; i < kAbilityTypeCount; ++i) {
+		std::shared_ptr<Ability> ability = ability_factory_.Create(static_cast<AbilityType>(i));
+		std::cout << (i + 1) << ") " << ability->GetName() << " (energy " << ability->GetEnergyCost() << ")"
+				<< std::endl;
+	}
+	std::size_t choice = ReadMenuChoice(kAbilityTypeCount);
+	FindPlayerRobot().AddAbility(ability_factory_.Create(static_cast<AbilityType>(choice)));
+}
 
+bool GameLoop::IsMenuKey(const std::string &input, std::size_t option_count) const {
+	return input.size() == 1 && input[0] >= kFirstAbilityKey &&
+			static_cast<std::size_t>(input[0] - kFirstAbilityKey) < option_count;
+}
+
+std::size_t GameLoop::ReadMenuChoice(std::size_t option_count) const {
+	std::string input;
+	std::cin >> input;
+	while (!IsMenuKey(input, option_count)) {
+		if (!std::cin) {
+			throw std::runtime_error("input closed");
+		}
+		std::cin >> input;
+	}
+	return static_cast<std::size_t>(input[0] - kFirstAbilityKey);
+}
+
+void GameLoop::HandleRankUps() {
+	Robot &player = FindPlayerRobot();
+	while (player.ConsumeRankUp()) {
+		ChooseRankUpReward(player);
+	}
+}
+
+void GameLoop::ChooseRankUpReward(Robot &player) {
+	std::cout << "Rank up choose reward:" << std::endl;
+	for (int i = 0; i < kAbilityTypeCount; ++i) {
+		std::cout << (i + 1) << ") " << ability_factory_.Create(static_cast<AbilityType>(i))->GetName() << std::endl;
+	}
+	AbilityType chosen = static_cast<AbilityType>(ReadMenuChoice(kAbilityTypeCount));
+	player.AddOrUpgradeAbility(ability_factory_.Create(chosen));
+}
+
+void GameLoop::UsePlayerAbility(Robot &player, std::size_t index) const {
+	int target_row = player.GetRow();
+	int target_col = player.GetCol();
+	if (player.GetAbilities()[index]->NeedsTarget()) {
+		std::cout << "Target offset (rows cols): ";
+		int row_offset = 0;
+		int col_offset = 0;
+		if (!(std::cin >> row_offset >> col_offset)) {
+			std::cin.clear();
+			std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+			return;
+		}
+		target_row += row_offset;
+		target_col += col_offset;
+	}
+	player.UseAbility(index, target_row, target_col, game_field_, robots_);
+}
+
+void GameLoop::EndTurnAll() {
+	for (Robot &robot: robots_) {
+		if (robot.GetHealth() > 0) {
+			robot.EndTurn();
+		}
+	}
+}

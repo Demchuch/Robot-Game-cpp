@@ -4,6 +4,7 @@
 
 #include "gamefield.h"
 
+#include <cstdlib>
 #include <stdexcept>
 #include "../config/game_constants.h"
 
@@ -86,6 +87,49 @@ void GameField::ClearVisibility() {
 	for (int row = 0; row < height_; ++row) {
 		for (int col = 0; col < width_; ++col) {
 			cells_[row][col].SetVisible(false);
+		}
+	}
+}
+
+void GameField::AddCellStatus(int row, int col, StatusType type) {
+	if (!IsInside(row, col)) {
+		throw std::invalid_argument("cell is outside the field");
+	}
+	cells_[row][col].AddStatus(type);
+}
+
+void GameField::RemoveCellStatus(int row, int col, std::size_t index) {
+	if (!IsInside(row, col)) {
+		throw std::invalid_argument("cell is outside the field");
+	}
+	cells_[row][col].RemoveStatusAt(index);
+}
+
+int GameField::RollStatusCount() const {
+	int roll = std::rand() % kPercentTotal;
+	if (roll < kNoStatusChance) {
+		return 0;
+	}
+	if (roll < kNoStatusChance + kOneStatusChance) {
+		return 1;
+	}
+	return kMaxCellStatuses;
+}
+
+StatusType GameField::RollStatusType() const {
+	return static_cast<StatusType>(std::rand() % kStatusTypeCount);
+}
+
+void GameField::GenerateStatuses() {
+	for (int row = 0; row < height_; ++row) {
+		for (int col = 0; col < width_; ++col) {
+			if (!cells_[row][col].GetWalkable()) {
+				continue;
+			}
+			int count = RollStatusCount();
+			for (int i = 0; i < count; ++i) {
+				cells_[row][col].AddStatus(RollStatusType());
+			}
 		}
 	}
 }

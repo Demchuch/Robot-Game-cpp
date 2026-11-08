@@ -49,3 +49,21 @@ void Cell::SetMovementCost(int movement_cost) {
 	}
 	movement_cost_ = movement_cost;
 }
+
+const std::vector<StatusType> &Cell::GetStatuses() const {
+	return statuses_;
+}
+
+void Cell::AddStatus(StatusType type) {
+	if (statuses_.size() >= static_cast<std::size_t>(kMaxCellStatuses)) {
+		throw std::invalid_argument("cell already has the maximum number of statuses");
+	}
+	statuses_.push_back(type);
+}
+
+void Cell::RemoveStatusAt(std::size_t index) {
+	if (index >= statuses_.size()) {
+		throw std::invalid_argument("status index is out of range");
+	}
+	statuses_.erase(statuses_.begin() + static_cast<std::ptrdiff_t>(index));
+}

@@ -2,7 +2,15 @@
 #ifndef OOP_ROBOT_ROBOT_H_
 #define OOP_ROBOT_ROBOT_H_
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "../ability/ability.h"
+#include "../status/status.h"
 #include "team.h"
+
+class GameField;
 
 
 class Robot {
@@ -57,6 +65,8 @@ public:
 
 	bool SetPosition(int row, int col, int cost);
 
+	void TeleportTo(int row, int col);
+
 	int GetExperience() const;
 
 	int GetExperienceToNextRank() const;
@@ -67,8 +77,30 @@ public:
 
 	int GetRemainingSpeed() const;
 
-private:
 	bool SpendEnergy(int amount);
+
+	bool AddAbility(std::shared_ptr<Ability> ability);
+
+	const std::vector<std::shared_ptr<Ability> > &GetAbilities() const;
+
+	bool UseAbility(std::size_t index, int target_row, int target_col,
+					GameField &field, std::vector<Robot> &robots);
+
+	void AddOrUpgradeAbility(std::shared_ptr<Ability> ability);
+
+	bool ConsumeRankUp();
+
+	void AddStatus(std::shared_ptr<Status> status);
+
+	const std::vector<std::shared_ptr<Status> > &GetStatuses() const;
+
+	bool CanMove() const;
+
+	void EndTurn();
+
+private:
+	void RemoveExpiredStatuses();
+
 
 	bool SpendSpeed(int amount);
 
@@ -90,6 +122,9 @@ private:
 	Team team_;
 	int remaining_speed_;
 	int speed_;
+	int pending_rank_ups_ = 0;
+	std::vector<std::shared_ptr<Ability> > abilities_;
+	std::vector<std::shared_ptr<Status> > statuses_;
 };
 
 #endif  // OOP_ROBOT_ROBOT_H_

@@ -4,6 +4,7 @@
 
 #include "robot.h"
 
+#include <algorithm>
 #include <stdexcept>
 
 #include "../config/game_constants.h"
@@ -104,7 +105,11 @@ void Robot::TakeDamage(int amount) {
 	if (amount < 0) {
 		throw std::invalid_argument("damage must not be negative");
 	}
+	for (const std::shared_ptr<Status> &status: statuses_) {
+		amount = status->AbsorbDamage(amount);
+	}
 	health_ = Clamp(health_ - amount, 0, max_health_);
+	RemoveExpiredStatuses();
 }
 
 void Robot::Heal(int amount) {
@@ -138,6 +143,7 @@ void Robot::RankUp() {
 	experience_to_next_rank_ *= kRankUpExperienceMultiplier;
 	health_ = max_health_;
 	energy_ = max_energy_;
+	++pending_rank_ups_;
 }
 
 bool Robot::SetPosition(int row, int col, int cost) {
@@ -147,7 +153,7 @@ bool Robot::SetPosition(int row, int col, int cost) {
 	if (cost < kMinMovementCost) {
 		throw std::invalid_argument("movement cost is below the minimum");
 	}
-	if (energy_ >= kActionCost && remaining_speed_ >= cost) {
+	if (CanMove() && energy_ >= kActionCost && remaining_speed_ >= cost) {
 		SpendEnergy(kActionCost);
 		SpendSpeed(cost);
 		row_ = row;
@@ -270,4 +276,111 @@ void Robot::SetSpeed(int speed) {
 	if (remaining_speed_ > speed_) {
 		remaining_speed_ = speed_;
 	}
+}
+
+void Robot::TeleportTo(int row, int col) {
+	if (row < 0 || col < 0) {
+		throw std::invalid_argument("position must not be negative");
+	}
+	row_ = row;
+	col_ = col;
+}
+
+bool Robot::AddAbility(std::shared_ptr<Ability> ability) {
+	if (ability == nullptr) {
+		throw std::invalid_argument("ability must not be null");
+	}
+	for (const std::shared_ptr<Ability> &owned: abilities_) {
+		if (owned->GetName() == ability->GetName()) {
+			return false;
+		}
+	}
+	abilities_.push_back(ability);
+	return true;
+}
+
+const std::vector<std::shared_ptr<Ability> > &Robot::GetAbilities() const {
+	return abilities_;
+}
+
+bool Robot::UseAbility(std::size_t index, int target_row, int target_col,
+					GameField &field, std::vector<Robot> &robots) {
+	if (index >= abilities_.size()) {
+		return false;
+	}
+	bool is_blocked = false;
+	for (const std::shared_ptr<Status> &status: statuses_) {
+		if (status->BlocksAbilities()) {
+			status->OnAbilityAttempt();
+			is_blocked = true;
+		}
+	}
+	if (is_blocked) {
+		RemoveExpiredStatuses();
+		return false;
+	}
+	return abilities_[index]->Use(*this, target_row, target_col, field, robots);
+}
+
+void Robot::AddOrUpgradeAbility(std::shared_ptr<Ability> ability) {
+	if (AddAbility(ability)) {
+		return;
+	}
+	for (const std::shared_ptr<Ability> &owned: abilities_) {
+		if (owned->GetName() == ability->GetName()) {
+			owned->Upgrade();
+		}
+	}
+}
+
+bool Robot::ConsumeRankUp() {
+	if (pending_rank_ups_ == 0) {
+		return false;
+	}
+	--pending_rank_ups_;
+	return true;
+}
+
+void Robot::AddStatus(std::shared_ptr<Status> status) {
+	if (status == nullptr) {
+		throw std::invalid_argument("status must not be null");
+	}
+	for (const std::shared_ptr<Status> &owned: statuses_) {
+		if (owned->GetName() == status->GetName()) {
+			owned->Stack(*status);
+			return;
+		}
+	}
+	statuses_.push_back(status);
+}
+
+const std::vector<std::shared_ptr<Status> > &Robot::GetStatuses() const {
+	return statuses_;
+}
+
+bool Robot::CanMove() const {
+	for (const std::shared_ptr<Status> &status: statuses_) {
+		if (status->BlocksMovement()) {
+			return false;
+		}
+	}
+	return true;
+}
+
+void Robot::EndTurn() {
+	std::vector<std::shared_ptr<Status> > snapshot = statuses_;
+	for (const std::shared_ptr<Status> &status: snapshot) {
+		status->OnTurnEnd(*this);
+	}
+	RemoveExpiredStatuses();
+}
+
+void Robot::RemoveExpiredStatuses() {
+	std::vector<std::shared_ptr<Status> > alive;
+	for (const std::shared_ptr<Status> &status: statuses_) {
+		if (!status->IsExpired()) {
+			alive.push_back(status);
+		}
+	}
+	statuses_ = alive;
 }

@@ -5,6 +5,7 @@
 #ifndef OOP_GAMEFIELD_GAMEFIELD_H_
 #define OOP_GAMEFIELD_GAMEFIELD_H_
 
+#include <cstddef>
 #include <vector>
 #include "../cell/cell.h"
 
@@ -30,7 +31,17 @@ public:
 
 	void ClearVisibility();
 
+	void AddCellStatus(int row, int col, StatusType type);
+
+	void RemoveCellStatus(int row, int col, std::size_t index);
+
+	void GenerateStatuses();
+
 private:
+	int RollStatusCount() const;
+
+	StatusType RollStatusType() const;
+
 	int width_;
 	int height_;
 	std::vector<std::vector<Cell> > cells_;

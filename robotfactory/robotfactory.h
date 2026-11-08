@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "../ability/ability_factory.h"
 #include "../robot/robot.h"
 #include "../robot/team.h"
 #include "../gamefield/gamefield.h"
@@ -37,6 +38,7 @@ private:
 	int col_;
 	int turns_between_spawns_;
 	int turns_since_spawn_ = 0;
+	AbilityFactory ability_factory_;
 };
 
 

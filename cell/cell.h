@@ -5,6 +5,11 @@
 #ifndef OOP_CELL_CELL_H_
 #define OOP_CELL_CELL_H_
 
+#include <cstddef>
+#include <vector>
+
+#include "../status/status_type.h"
+
 
 class Cell {
 public:
@@ -26,11 +31,18 @@ public:
 
 	void SetVisible(bool is_visible);
 
+	const std::vector<StatusType> &GetStatuses() const;
+
+	void AddStatus(StatusType type);
+
+	void RemoveStatusAt(std::size_t index);
+
 private:
 	bool is_known_ = false;
 	int movement_cost_;
 	bool is_walkable_;
 	bool is_visible_ = false;
+	std::vector<StatusType> statuses_;
 };
 
 

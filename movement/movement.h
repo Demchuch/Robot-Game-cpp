@@ -6,6 +6,7 @@
 #define OOP_MOVEMENT_H
 #include "../robot/robot.h"
 #include "../gamefield/gamefield.h"
+#include "../status/status_factory.h"
 
 
 class MovementSystem {
@@ -15,6 +16,9 @@ public:
 	bool Action(Robot &robot, Robot *opponent, int row, int col) const;
 
 private:
+	void ApplyCellStatuses(Robot &robot, int row, int col) const;
+
 	GameField &game_field_;
+	StatusFactory status_factory_;
 };
 #endif //OOP_MOVEMENT_H

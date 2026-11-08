@@ -1,17 +1,25 @@
 #include "robot/robot.h"
 #include "gamefield/gamefield.h"
 #include "visualizer/visualizer.h"
+#include <cstdlib>
+#include <ctime>
 #include <vector>
+#include "ability/ability_factory.h"
 #include "config/game_constants.h"
 #include "gameloop/gameloop.h"
 
 int main() {
+	std::srand(static_cast<unsigned int>(std::time(nullptr)));
 	GameField field(kFieldWidth, kFieldHeight);
 
 	Robot player(100, 10, 50, 100, Team::kPlayer, kFieldHeight / 2, kFieldWidth / 2, 4, kVisionRadius);
 	Robot ally(80, 20, 50, 100, Team::kAlly, 2, 2, 3, kVisionRadius);
 	Robot enemy1(80, 20, 50, 100, Team::kEnemy, 5, 7, 3, kVisionRadius);
 	Robot enemy2(80, 20, 50, 100, Team::kEnemy, 5, 10, 3, kVisionRadius);
+
+	AbilityFactory ability_factory;
+	enemy1.AddAbility(ability_factory.CreateRandomForEnemy());
+	enemy2.AddAbility(ability_factory.CreateRandomForEnemy());
 
 	field.SetWalkable(3, 12, false);
 	field.SetWalkable(3, 9, false);
@@ -33,6 +41,8 @@ int main() {
 	field.SetMovementCost(3, 9, kSlowCellThreshold);
 	field.SetMovementCost(2, 2, kSlowCellThreshold);
 	field.SetMovementCost(1, 10, kSlowCellThreshold);
+
+	field.GenerateStatuses();
 
 	RobotFactory factory(5, 20, 10);
 	std::vector<RobotFactory> factories = {factory};
